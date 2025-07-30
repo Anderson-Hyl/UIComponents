@@ -1,0 +1,42 @@
+{
+  "originHash" : "ec26caaf1e8c6a2b8351453f87d88219e03caa1853b402b02d99a7144adf7994",
+  "pins" : [
+    {
+      "identity" : "kingfisher",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/onevcat/Kingfisher.git",
+      "state" : {
+        "revision" : "2015fda791daa72c8058619545a593bf8c1dd59f",
+        "version" : "8.5.0"
+      }
+    },
+    {
+      "identity" : "swift-play-experimental",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-play-experimental.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "2ecfbea7066cda68ca67dd5f0401c7c971e9017f"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "state" : {
+        "revision" : "fd6373fad9cf3b3bc4e3c06d92f0cfd60007fa8e",
+        "version" : "602.0.0-prerelease-2025-06-26"
+      }
+    },
+    {
+      "identity" : "swift-testing",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-testing.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "9edaba8cbbed6add10c138380cf4413eb713cbf0"
+      }
+    }
+  ],
+  "version" : 3
+}
