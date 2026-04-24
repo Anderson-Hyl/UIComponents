@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SlideFlow — UI refresh concept</title>
+<style>
+  :root {
+    font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-size: 13.5px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #070707;
+    color: #F5F5F5;
+    padding: 48px 32px;
+    min-height: 100vh;
+  }
+  .page { max-width: 1280px; margin: 0 auto; }
+
+  .doc-title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    margin-bottom: 4px;
+  }
+  .doc-sub {
+    font-size: 13px;
+    opacity: 0.55;
+    margin-bottom: 48px;
+    line-height: 1.6;
+  }
+  .mode-label {
+    font-size: 10.5px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    opacity: 0.55;
+    margin-bottom: 14px;
+    font-weight: 500;
+  }
+
+  /* shell */
+  .shell {
+    width: 100%;
+    height: 620px;
+    border-radius: 16px;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 228px 1fr 260px;
+    position: relative;
+    margin-bottom: 44px;
+    box-shadow: 0 24px 60px -20px rgba(0,0,0,0.7), 0 0 0 0.5px rgba(255,255,255,0.04);
+  }
+  .dark { background: #0E0E0E; color: #EDEDED; }
+  .dark .sidebar  { background: #111111; border-right: 0.5px solid #1D1D1D; }
+  .dark .canvas-col { background: #0D0D0D; }
+  .dark .inspector { background: #0B0B0B; border-left: 0.5px solid #181818; }
+
+  .light { background: #FAFAF9; color: #111111; }
+  .light .sidebar  { background: #F2F1EE; border-right: 0.5px solid #E7E5E1; }
+  .light .canvas-col { background: #FAFAF9; }
+  .light .inspector { background: #F7F5F2; border-left: 0.5px solid #E7E5E1; }
+
+  /* sidebar */
+  .sidebar {
+    padding: 14px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow: hidden;
+  }
+  .sidebar .brand {
+    padding: 4px 10px 18px;
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 600; font-size: 13px; letter-spacing: -0.2px;
+  }
+  .sidebar .brand-mark {
+    width: 18px; height: 18px; border-radius: 5px;
+    background: linear-gradient(135deg, #7AA5FA, #6F8ED5);
+    box-shadow: 0 2px 6px rgba(122,165,250,0.25);
+  }
+  .light .sidebar .brand-mark { background: linear-gradient(135deg, #4C81DD, #3B68BD); }
+  .sidebar .section-label {
+    font-size: 10px;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    opacity: 0.42;
+    padding: 14px 10px 8px;
+    font-weight: 500;
+  }
+  .sidebar .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6.5px 10px;
+    border-radius: 7px;
+    font-size: 12.5px;
+    color: inherit;
+    cursor: pointer;
+    transition: background 80ms ease;
+  }
+  .dark .sidebar .row:hover  { background: rgba(255,255,255,0.04); }
+  .light .sidebar .row:hover { background: rgba(0,0,0,0.035); }
+  .dark .sidebar .row.active  { background: rgba(255,255,255,0.055); }
+  .light .sidebar .row.active { background: rgba(0,0,0,0.045); }
+  .sidebar .row.active .name { font-weight: 500; }
+  .sidebar .row .count {
+    margin-left: auto; font-size: 10.5px; opacity: 0.4; font-variant-numeric: tabular-nums;
+  }
+
+  .deck-dot {
+    width: 20px; height: 20px; border-radius: 5.5px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 600; color: white;
+    letter-spacing: -0.2px;
+  }
+  .convo-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; opacity: 0.45;
+  }
+
+  .sidebar .bridge {
+    margin-top: auto;
+    padding: 10px 11px;
+    border-radius: 9px;
+    font-size: 11px;
+    display: flex; align-items: center; gap: 8px;
+    opacity: 0.78;
+  }
+  .dark .sidebar .bridge  { background: rgba(255,255,255,0.028); }
+  .light .sidebar .bridge { background: rgba(0,0,0,0.025); }
+  .bridge-dot { width: 6px; height: 6px; border-radius: 50%; background: #7AC7A8; box-shadow: 0 0 6px rgba(122,199,168,0.5); }
+
+  /* toolbar */
+  .toolbar {
+    height: 42px;
+    padding: 0 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+  }
+  .dark .toolbar  { border-bottom: 0.5px solid #181818; }
+  .light .toolbar { border-bottom: 0.5px solid #E7E5E1; }
+
+  .toolbar .doctitle { font-weight: 500; letter-spacing: -0.1px; }
+  .toolbar .doc-meta { opacity: 0.45; font-size: 11.5px; margin-left: 4px; }
+  .toolbar .spacer { flex: 1; }
+  .toolbar .icon-btn {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; opacity: 0.55;
+    cursor: pointer; transition: all 100ms ease;
+  }
+  .toolbar .icon-btn:hover { opacity: 1; }
+  .dark .toolbar .icon-btn:hover  { background: rgba(255,255,255,0.06); }
+  .light .toolbar .icon-btn:hover { background: rgba(0,0,0,0.05); }
+  .toolbar .kbd {
+    padding: 3px 7px; border-radius: 5px;
+    font-size: 10.5px; font-family: "SF Mono", ui-monospace, monospace;
+    opacity: 0.55; letter-spacing: 0.3px;
+  }
+  .dark .toolbar .kbd  { background: #161616; color: #B0B0B0; }
+  .light .toolbar .kbd { background: #EBE9E5; color: #555; }
+
+  /* canvas */
+  .canvas-col { display: flex; flex-direction: column; min-width: 0; }
+  .canvas {
+    flex: 1;
+    padding: 22px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    align-content: start;
+    overflow: hidden;
+  }
+  .card {
+    aspect-ratio: 16 / 9;
+    border-radius: 9px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+  }
+  .card:hover { transform: translateY(-1px); }
+  .dark .card  { background: #1A1A1A; box-shadow: inset 0 0 0 0.5px #232323; }
+  .light .card { background: #FFFFFF; box-shadow: inset 0 0 0 0.5px #E2E0DC, 0 1px 2px rgba(0,0,0,0.03); }
+  .card.active { box-shadow: inset 0 0 0 1.5px #7AA5FA; }
+  .light .card.active { box-shadow: inset 0 0 0 1.5px #4C81DD; }
+
+  .card .thumb-content {
+    position: absolute; inset: 0;
+    padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 5px;
+    font-size: 10px;
+  }
+  .card .scrim {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 42px;
+    background: linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0.0));
+  }
+  .card .footer {
+    position: absolute; left: 12px; right: 12px; bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10.5px; color: rgba(255,255,255,0.92); font-weight: 500;
+    letter-spacing: 0.1px; z-index: 2;
+  }
+  .card .footer .accent-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+  }
+  .card .footer .kind {
+    margin-left: auto; font-size: 9.5px; opacity: 0.75;
+    padding: 1.5px 6px; border-radius: 3px;
+    background: rgba(255,255,255,0.14);
+    letter-spacing: 0.4px; text-transform: uppercase;
+  }
+
+  .thumb-content .h {
+    font-size: 16px; font-weight: 600; letter-spacing: -0.2px;
+  }
+  .thumb-content .h-small { font-size: 11px; font-weight: 600; }
+  .thumb-content .b { font-size: 8.5px; opacity: 0.55; line-height: 1.5; }
+  .thumb-content .bar { height: 3px; border-radius: 2px; }
+
+  /* new slide card */
+  .new-card {
+    aspect-ratio: 16 / 9;
+    border-radius: 9px;
+    border: 1.2px dashed;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 100ms ease;
+  }
+  .dark .new-card  { border-color: #262626; color: rgba(255,255,255,0.5); }
+  .light .new-card { border-color: #D2D0CB; color: rgba(0,0,0,0.5); }
+  .new-card:hover { border-style: solid; }
+  .dark .new-card:hover  { background: rgba(122,165,250,0.06); border-color: #7AA5FA; color: #7AA5FA; }
+  .light .new-card:hover { background: rgba(76,129,221,0.06); border-color: #4C81DD; color: #4C81DD; }
+  .new-card .plus-badge {
+    width: 30px; height: 30px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; font-weight: 500;
+  }
+  .dark .new-card .plus-badge  { background: rgba(122,165,250,0.14); color: #7AA5FA; }
+  .light .new-card .plus-badge { background: rgba(76,129,221,0.12); color: #4C81DD; }
+  .new-card .plus-label {
+    font-size: 10.5px; font-weight: 500; letter-spacing: 0.4px;
+  }
+
+  /* chat drawer — flush, not floating */
+  .drawer {
+    position: absolute;
+    left: 228px;
+    right: 260px;
+    bottom: 0;
+    height: 160px;
+    padding: 14px 18px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .dark .drawer  {
+    background: rgba(14,14,14,0.86);
+    border-top: 0.5px solid #1C1C1C;
+    backdrop-filter: blur(18px) saturate(1.1);
+    -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  }
+  .light .drawer {
+    background: rgba(248,247,245,0.82);
+    border-top: 0.5px solid #E7E5E1;
+    backdrop-filter: blur(18px) saturate(1.05);
+    -webkit-backdrop-filter: blur(18px) saturate(1.05);
+  }
+
+  .drawer .bar {
+    display: flex; align-items: center; gap: 8px; font-size: 12px;
+  }
+  .drawer .assistant-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #7AA5FA;
+    box-shadow: 0 0 8px rgba(122,165,250,0.5);
+  }
+  .light .drawer .assistant-dot {
+    background: #4C81DD;
+    box-shadow: 0 0 8px rgba(76,129,221,0.4);
+  }
+  .drawer .bar .model {
+    opacity: 0.55; margin-left: 2px;
+  }
+  .drawer .bar .count {
+    margin-left: auto; opacity: 0.45; font-size: 10.5px;
+  }
+  .drawer .msg {
+    font-size: 12.5px; line-height: 1.55;
+    opacity: 0.82;
+  }
+  .drawer .input {
+    margin-top: auto;
+    padding: 9px 14px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .dark .drawer .input  { background: #161616; box-shadow: inset 0 0 0 0.5px #242424; }
+  .light .drawer .input { background: #FFFFFF; box-shadow: inset 0 0 0 0.5px #DDDBD6; }
+  .drawer .input .placeholder { opacity: 0.4; flex: 1; }
+  .drawer .send {
+    padding: 5px 12px; border-radius: 7px; font-size: 11px;
+    font-weight: 500; letter-spacing: 0.1px;
+  }
+  .dark .drawer .send  { background: rgba(122,165,250,0.18); color: #A8C4FA; }
+  .light .drawer .send { background: #4C81DD; color: white; }
+
+  /* inspector */
+  .inspector {
+    padding: 18px 16px;
+    font-size: 11.5px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .inspector .section-label {
+    font-size: 10px; letter-spacing: 0.9px; text-transform: uppercase;
+    opacity: 0.42; margin-bottom: 12px; font-weight: 500;
+  }
+  .inspector .field {
+    padding: 10px 0;
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px;
+  }
+  .dark .inspector .field  { border-bottom: 0.5px solid #161616; }
+  .light .inspector .field { border-bottom: 0.5px solid #E7E5E1; }
+  .inspector .field:last-of-type { border: 0; }
+  .inspector .field .key { opacity: 0.55; font-size: 11px; }
+  .inspector .field .val { font-weight: 500; font-size: 11.5px; text-align: right; }
+  .inspector .field .val .sub { font-weight: 400; opacity: 0.5; font-size: 10px; display: block; margin-top: 2px; }
+
+  .inspector .actions {
+    margin-top: 16px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .inspector .action {
+    padding: 7px 10px; border-radius: 6px;
+    font-size: 11.5px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dark .inspector .action  { background: rgba(255,255,255,0.03); }
+  .light .inspector .action { background: rgba(0,0,0,0.03); }
+  .inspector .action:hover  { opacity: 0.8; }
+  .inspector .action .glyph { opacity: 0.55; font-size: 11px; width: 12px; text-align: center; }
+
+  /* principles card */
+  .principles {
+    background: #101010;
+    border-radius: 14px;
+    padding: 32px 36px;
+    color: #E8E8E8;
+    box-shadow: 0 0 0 0.5px rgba(255,255,255,0.04);
+  }
+  .principles h2 {
+    font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase;
+    opacity: 0.5; margin-bottom: 22px; font-weight: 500;
+  }
+  .principles ol {
+    list-style: none;
+    counter-reset: p;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px 36px;
+  }
+  .principles li {
+    counter-increment: p;
+    font-size: 12.5px;
+    line-height: 1.6;
+    padding-left: 30px;
+    position: relative;
+  }
+  .principles li::before {
+    content: counter(p, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.45;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+  .principles li b { color: #FFFFFF; font-weight: 600; }
+  .principles li code {
+    background: #1C1C1C; padding: 1px 6px; border-radius: 3px;
+    font-family: "SF Mono", ui-monospace, monospace; font-size: 11px;
+    color: #B5B5B5;
+  }
+
+  /* token ladder */
+  .tokens {
+    margin-top: 28px;
+    padding: 28px 32px;
+    background: #0D0D0D;
+    border-radius: 14px;
+    box-shadow: 0 0 0 0.5px rgba(255,255,255,0.04);
+  }
+  .tokens h2 {
+    font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase;
+    opacity: 0.5; margin-bottom: 20px; font-weight: 500;
+  }
+  .ladder {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+  .ladder-col .ladder-title {
+    font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase;
+    opacity: 0.55; margin-bottom: 10px; font-weight: 500;
+  }
+  .swatch-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0;
+    border-bottom: 0.5px solid #161616;
+    font-size: 11.5px;
+  }
+  .swatch-row:last-child { border: 0; }
+  .swatch {
+    width: 20px; height: 20px; border-radius: 4.5px;
+    box-shadow: 0 0 0 0.5px rgba(255,255,255,0.08);
+    flex-shrink: 0;
+  }
+  .swatch-row .name { opacity: 0.9; font-weight: 500; min-width: 100px; }
+  .swatch-row .hex { opacity: 0.5; font-family: "SF Mono", ui-monospace, monospace; font-size: 10.5px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="doc-title">SlideFlow — UI refresh concept</div>
+  <div class="doc-sub">
+    Inspired by Claude Code's workshop-calm. Not a copy —<br/>
+    quiet neutrals, one muted accent, typography-first hierarchy,
+    chrome that disappears so slides lead.
+  </div>
+
+  <!-- DARK -->
+  <div class="mode-label">◐ Dark</div>
+  <div class="shell dark">
+    <div class="sidebar">
+      <div class="brand"><div class="brand-mark"></div>SlideFlow</div>
+
+      <div class="section-label">Decks</div>
+      <div class="row active"><div class="deck-dot" style="background:#6B96C8">K</div><div class="name">Kyoto Trip</div><div class="count">3</div></div>
+      <div class="row"><div class="deck-dot" style="background:#967BC5">D</div><div class="name">Design Review</div><div class="count">12</div></div>
+      <div class="row"><div class="deck-dot" style="background:#C79C60">Q</div><div class="name">Q1 Plan</div><div class="count">8</div></div>
+      <div class="row"><div class="deck-dot" style="background:#6AA287">G</div><div class="name">Growth Notes</div><div class="count">5</div></div>
+
+      <div class="section-label">Conversations</div>
+      <div class="row"><div class="convo-dot">●</div><div class="name">Palette draft</div></div>
+      <div class="row"><div class="convo-dot">●</div><div class="name">Inspector pass</div></div>
+      <div class="row"><div class="convo-dot">●</div><div class="name">Canvas crop</div></div>
+
+      <div class="bridge"><div class="bridge-dot"></div>AI bridge · 127.0.0.1:8765</div>
+    </div>
+
+    <div class="canvas-col">
+      <div class="toolbar">
+        <div class="doctitle">Kyoto Trip</div>
+        <div class="doc-meta">· 3 slides · edited 2m ago</div>
+        <div class="spacer"></div>
+        <div class="icon-btn">⌘</div>
+        <div class="icon-btn">▤</div>
+        <span class="kbd">⌘⌥W</span>
+        <span class="kbd">⌘R</span>
+      </div>
+
+      <div class="canvas">
+        <div class="card active">
+          <div class="thumb-content">
+            <div class="h" style="color:#E8C86B">Kyoto</div>
+            <div class="b">April 24 — 28 · Anderson</div>
+            <div style="flex:1"></div>
+            <div class="bar" style="background:#E8C86B;width:34%"></div>
+          </div>
+          <div class="scrim"></div>
+          <div class="footer"><div class="accent-dot" style="background:#E8C86B"></div>01 · Cover<div class="kind">slide</div></div>
+        </div>
+
+        <div class="card">
+          <div class="thumb-content">
+            <div class="h-small" style="color:#F2F2F2">Day 01 · Arashiyama</div>
+            <div class="b">Bamboo grove at dawn</div>
+            <div class="b">Togetsukyo bridge</div>
+            <div class="b">Tenryu-ji temple · tea</div>
+            <div style="flex:1"></div>
+            <div style="display:flex; gap:3px">
+              <div class="bar" style="background:#6B96C8;width:18%"></div>
+              <div class="bar" style="background:#6B96C8;opacity:0.5;width:24%"></div>
+            </div>
+          </div>
+          <div class="scrim"></div>
+          <div class="footer"><div class="accent-dot" style="background:#6B96C8"></div>02 · Itinerary<div class="kind">slide</div></div>
+        </div>
+
+        <div class="card">
+          <div class="thumb-content">
+            <div class="h-small" style="opacity:0.8;color:#F2F2F2">¥ Budget split</div>
+            <div style="flex:1"></div>
+            <div style="display:flex; gap:3px; margin-bottom:16px">
+              <div class="bar" style="background:#7AA5FA;width:40%;height:22px;border-radius:3px"></div>
+              <div class="bar" style="background:#6AA287;width:28%;height:22px;border-radius:3px"></div>
+              <div class="bar" style="background:#B5895D;width:20%;height:22px;border-radius:3px"></div>
+            </div>
+          </div>
+          <div class="scrim"></div>
+          <div class="footer"><div class="accent-dot" style="background:#7AA5FA"></div>03 · Budget<div class="kind">slide</div></div>
+        </div>
+
+        <div class="new-card">
+          <div class="plus-badge">+</div>
+          <div class="plus-label">ADD SLIDE</div>
+        </div>
+      </div>
+
+      <div class="drawer">
+        <div class="bar">
+          <div class="assistant-dot"></div>
+          <span style="font-weight:500">Assistant</span>
+          <span class="model">· Claude Opus 4.7</span>
+          <span class="count">3 / 3 slides</span>
+        </div>
+        <div class="msg">Added three slides. Palette is low-saturation warm neutrals — matches the Kyoto cover mood. Reorder with the canvas or ask me to revise any one.</div>
+        <div class="input">
+          <span class="placeholder">Ask SlideFlow to edit, add, or reorder slides…</span>
+          <div class="send">Send</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="inspector">
+      <div class="section-label">Slide 02</div>
+      <div class="field"><span class="key">Name</span><span class="val">Itinerary</span></div>
+      <div class="field"><span class="key">Kind</span><span class="val">slide<span class="sub">html · fragment</span></span></div>
+      <div class="field"><span class="key">Order</span><span class="val">02<span class="sub">of 03</span></span></div>
+      <div class="field"><span class="key">Body</span><span class="val">2.1 KB<span class="sub">edited 2m ago</span></span></div>
+
+      <div class="actions">
+        <div class="action"><span class="glyph">✎</span>Edit HTML</div>
+        <div class="action"><span class="glyph">⎘</span>Duplicate</div>
+        <div class="action"><span class="glyph">⌫</span>Delete</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIGHT -->
+  <div class="mode-label">◑ Light</div>
+  <div class="shell light">
+    <div class="sidebar">
+      <div class="brand"><div class="brand-mark"></div>SlideFlow</div>
+
+      <div class="section-label">Decks</div>
+      <div class="row active"><div class="deck-dot" style="background:#6B96C8">K</div><div class="name">Kyoto Trip</div><div class="count">3</div></div>
+      <div class="row"><div class="deck-dot" style="background:#967BC5">D</div><div class="name">Design Review</div><div class="count">12</div></div>
+      <div class="row"><div class="deck-dot" style="background:#C79C60">Q</div><div class="name">Q1 Plan</div><div class="count">8</div></div>
+      <div class="row"><div class="deck-dot" style="background:#6AA287">G</div><div class="name">Growth Notes</div><div class="count">5</div></div>
+
+      <div class="section-label">Conversations</div>
+      <div class="row"><div class="convo-dot">●</div><div class="name">Palette draft</div></div>
+      <div class="row"><div class="convo-dot">●</div><div class="name">Inspector pass</div></div>
+      <div class="row"><div class="convo-dot">●</div><div class="name">Canvas crop</div></div>
+
+      <div class="bridge"><div class="bridge-dot"></div>AI bridge · 127.0.0.1:8765</div>
+    </div>
+
+    <div class="canvas-col">
+      <div class="toolbar">
+        <div class="doctitle">Kyoto Trip</div>
+        <div class="doc-meta">· 3 slides · edited 2m ago</div>
+        <div class="spacer"></div>
+        <div class="icon-btn">⌘</div>
+        <div class="icon-btn">▤</div>
+        <span class="kbd">⌘⌥W</span>
+        <span class="kbd">⌘R</span>
+      </div>
+
+      <div class="canvas">
+        <div class="card active">
+          <div class="thumb-content">
+            <div class="h" style="color:#B78828">Kyoto</div>
+            <div class="b" style="color:#333">April 24 — 28 · Anderson</div>
+            <div style="flex:1"></div>
+            <div class="bar" style="background:#B78828;width:34%"></div>
+          </div>
+          <div class="scrim"></div>
+          <div class="footer"><div class="accent-dot" style="background:#B78828"></div>01 · Cover<div class="kind">slide</div></div>
+        </div>
+
+        <div class="card">
+          <div class="thumb-content">
+            <div class="h-small" style="color:#222">Day 01 · Arashiyama</div>
+            <div class="b" style="color:#555">Bamboo grove at dawn</div>
+            <div class="b" style="color:#555">Togetsukyo bridge</div>
+            <div class="b" style="color:#555">Tenryu-ji temple · tea</div>
+            <div style="flex:1"></div>
+            <div style="display:flex; gap:3px">
+              <div class="bar" style="background:#4C81DD;width:18%"></div>
+              <div class="bar" style="background:#4C81DD;opacity:0.5;width:24%"></div>
+            </div>
+          </div>
+          <div class="scrim"></div>
+          <div class="footer"><div class="accent-dot" style="background:#4C81DD"></div>02 · Itinerary<div class="kind">slide</div></div>
+        </div>
+
+        <div class="card">
+          <div class="thumb-content">
+            <div class="h-small" style="opacity:0.8;color:#222">¥ Budget split</div>
+            <div style="flex:1"></div>
+            <div style="display:flex; gap:3px; margin-bottom:16px">
+              <div class="bar" style="background:#4C81DD;width:40%;height:22px;border-radius:3px"></div>
+              <div class="bar" style="background:#5B9686;width:28%;height:22px;border-radius:3px"></div>
+              <div class="bar" style="background:#A07347;width:20%;height:22px;border-radius:3px"></div>
+            </div>
+          </div>
+          <div class="scrim"></div>
+          <div class="footer"><div class="accent-dot" style="background:#4C81DD"></div>03 · Budget<div class="kind">slide</div></div>
+        </div>
+
+        <div class="new-card">
+          <div class="plus-badge">+</div>
+          <div class="plus-label">ADD SLIDE</div>
+        </div>
+      </div>
+
+      <div class="drawer">
+        <div class="bar">
+          <div class="assistant-dot"></div>
+          <span style="font-weight:500">Assistant</span>
+          <span class="model">· Claude Opus 4.7</span>
+          <span class="count">3 / 3 slides</span>
+        </div>
+        <div class="msg">Added three slides. Palette is low-saturation warm neutrals — matches the Kyoto cover mood. Reorder with the canvas or ask me to revise any one.</div>
+        <div class="input">
+          <span class="placeholder">Ask SlideFlow to edit, add, or reorder slides…</span>
+          <div class="send">Send</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="inspector">
+      <div class="section-label">Slide 02</div>
+      <div class="field"><span class="key">Name</span><span class="val">Itinerary</span></div>
+      <div class="field"><span class="key">Kind</span><span class="val">slide<span class="sub">html · fragment</span></span></div>
+      <div class="field"><span class="key">Order</span><span class="val">02<span class="sub">of 03</span></span></div>
+      <div class="field"><span class="key">Body</span><span class="val">2.1 KB<span class="sub">edited 2m ago</span></span></div>
+
+      <div class="actions">
+        <div class="action"><span class="glyph">✎</span>Edit HTML</div>
+        <div class="action"><span class="glyph">⎘</span>Duplicate</div>
+        <div class="action"><span class="glyph">⌫</span>Delete</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRINCIPLES -->
+  <div class="principles">
+    <h2>Design principles — distilled from the Claude Code reference</h2>
+    <ol>
+      <li><b>True neutrals, no cast.</b> Dark mode sits at <code>#0E0E0E</code>-<code>#1A1A1A</code> (near-black, no blue tint). Light mode is <code>#FAFAF9</code>-<code>#F2F1EE</code> paper (warmth ≤ Δ3). Replaces 812156c's warmer tri-surface workspace stack.</li>
+      <li><b>One accent, used sparingly.</b> Periwinkle <code>#7AA5FA</code> / <code>#4C81DD</code> — active deck row, primary CTA, chart data. No status-color decoration.</li>
+      <li><b>Chrome subtraction.</b> Borders are 0.5pt tonal shifts (<code>#181818</code> / <code>#E7E5E1</code>), never visible strokes. Shadows only on the outer shell. Hover = 4–5% tint, no lift.</li>
+      <li><b>Typography leads.</b> Section labels 10px UPPERCASE @ 42% opacity + 0.9px tracking. Row names 12.5px / 400 idle → 500 active. Hierarchy via weight/tone, not dividers.</li>
+      <li><b>Deck-color restraint.</b> 8-hue palette from d0ababb kept but desaturated — S≈0.38, L≈0.58. Mono letter on the swatch so the deck name leads, not the color.</li>
+      <li><b>Flush chat drawer.</b> Sits on the canvas like a sheet. Top-border + 18px backdrop-blur; no floating shadow. Composer input is the bright piece, drawer body recedes.</li>
+      <li><b>Inspector is a list, not a panel.</b> Right column is key/value rows with bottom-border ticks, plus a three-action stack. No card-in-card nesting.</li>
+      <li><b>Canvas breathes.</b> 22px grid padding, 16px gaps, cards are pure 16:9 with a gradient scrim + footer overlay — no title row under the card (footer moves inside per 812156c, which we keep).</li>
+    </ol>
+  </div>
+
+  <!-- TOKEN LADDER -->
+  <div class="tokens">
+    <h2>Proposed token ladder</h2>
+    <div class="ladder">
+      <div class="ladder-col">
+        <div class="ladder-title">Dark</div>
+        <div class="swatch-row"><div class="swatch" style="background:#0E0E0E"></div><span class="name">content</span><span class="hex">#0E0E0E</span></div>
+        <div class="swatch-row"><div class="swatch" style="background:#111111"></div><span class="name">sidebar</span><span class="hex">#111111</span></div>
+        <div class="swatch-row"><div class="swatch" style="background:#0B0B0B"></div><span class="name">inspector</span><span class="hex">#0B0B0B</span></div>
+        <div class="swatch-row"><div class="swatch" style="background:#1A1A1A"></div><span class="name">card</span><span class="hex">#1A1A1A</span></div>
+        <div class="swatch-row"><div class="swatch" style="background:#161616"></div><span class="name">kbd / input</span><span class="hex">#161616</span></div>
+        <div class="swatch-row"><div class="swatch" style="background:#1D1D1D"></div><span class="name">stroke</span><span class="hex">#1D1D1D</span></div>
+        <div class="swatch-row"><div class="swatch" style="background:#7AA5FA"></div><span class="name">accent</span><span class="hex">#7AA5FA</span></div>
+        <div class="swatch-row"><div class="swatch" style="background:#7AC7A8"></div><span class="name">bridge ok</span><span class="hex">#7AC7A8</span></div>
+      </div>
+      <div class="ladder-col">
+        <div class="ladder-title">Light</div>
+        <div class="swatch-row"><div class="swatch" style="background:#FAFAF9"></div><span class="name">content</span><span class="hex">#FAFAF9</span></div>
+        <div class="swatch-row"><div class="swatch" style="background:#F2F1EE"></div><span class="name">sidebar</span><span class="hex">#F2F1EE</span></div>
+        <div class="swatch-row"><div class="swatch" style="background:#F7F5F2"></div><span class="name">inspector</span><span class="hex">#F7F5F2</span></div>
+        <div class="swatch-row"><div class="swatch" style="background:#FFFFFF"></div><span class="name">card</span><span class="hex">#FFFFFF</span></div>
+        <div class="swatch-row"><div class="swatch" style="background:#EBE9E5"></div><span class="name">kbd / input</span><span class="hex">#EBE9E5</span></div>
+        <div class="swatch-row"><div class="swatch" style="background:#E7E5E1"></div><span class="name">stroke</span><span class="hex">#E7E5E1</span></div>
+        <div class="swatch-row"><div class="swatch" style="background:#4C81DD"></div><span class="name">accent</span><span class="hex">#4C81DD</span></div>
+        <div class="swatch-row"><div class="swatch" style="background:#5B9686"></div><span class="name">bridge ok</span><span class="hex">#5B9686</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
